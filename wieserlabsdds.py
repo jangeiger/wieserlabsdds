@@ -323,21 +323,20 @@ class WieserlabsSlot:
         self._update_queue = [[], []]
 
 class WieserlabsClient:
-    def __init__(self, ip_address, max_amp, loglevel):
+    def __init__(self, ip_address, loglevel):
         """
         This is a client written for the Wieserlabs DDS rack.
         It is a very versatile hardware and this is an attempt at covering at least the very basics.
 
         Before using this class, make sure to calibrate the output level of the DDS!
-        Use the calibrate_amplitudes function (which is global in this file).
-        This sets a maximum amplitude, single tone on all DDSs, which you can read out using a spectrum analyzer.
+        Use the single_tone method with an amplitude of 1.
+        This sets a maximum amplitude, single tone, which you can read out using a spectrum analyzer.
         The output amplitude can be changed using the potentiometer on the front panel of the slots. Set this
-        to a preferred value and note down the peak amplitude. This is the value given into max_amp in dBm.
+        to a preferred value and note down the peak amplitude.
         """
         logging.root.level = loglevel
 
         self.ip_address = ip_address
-        self.max_amp = max_amp
 
         self.slots = {}
         for i in range(0, 6):
@@ -346,6 +345,7 @@ class WieserlabsClient:
         self._connect_all_slots()
         for slot in self.slots:
             self._reset_cfr(slot)
+        self.last_msg = None
 
     def _validate_slot_channel(self, slot=None, channel=None):
         if channel != None:
@@ -434,6 +434,11 @@ class WieserlabsClient:
             msg_stack = self.slots[slot_index].message_stack
 
             msg = AD9910RegisterWriteMessage(channel, f"CFR{cfr_number}", val)
+            if self.last_msg == None:
+                self.last_msg = val
+            elif self.last_msg == val:
+                # setting the same values twice does not make sense and is inefficient!
+                return
             self.push_message(slot_index, msg)
 
     def _reset_cfr(self, slot_index):
@@ -516,7 +521,7 @@ class WieserlabsClient:
         msg = ResetMessage()
         self.push_message(slot_index, msg)
 
-    def single_tone(self, slot_index, channel, freq, amp, phase=0):
+    def single_tone(self, slot_index, channel, freq, amp, phase=0, suffix=None):
         """ Generate a single tone
             Parameters:
                 slot: 0..5, the hardware slot used in the rack
@@ -524,6 +529,7 @@ class WieserlabsClient:
                 freq: Frequency in Hz
                 amp: The amplitude in dBm
                 phase: The phase of the note in degrees (0..360)
+                suffix: An optional suffix to the command (for example c)
         """
 
         # Make sure single tone amplitude control is on
@@ -536,6 +542,7 @@ class WieserlabsClient:
         # Generate the command
         # cmd = self._freq_command(channel, freq, amp, phase%360)
         reg_value = self._get_stp0_value(freq, amp, phase%360)
+        if suffix != None: reg_value += ":"+suffix
 
         # Push the command + update, in order to activate the DDS for this
         # single tone
@@ -803,7 +810,7 @@ class WieserlabsClient:
                 self.push_message(slot_index, UpdateMessage(channel, f"u-d"))
                 self.push_message(slot_index, UpdateMessage(channel, f"+d"))
 
-    def wait_time(self, slot_index, channel, t):
+    def wait_time(self, slot_index, channel, t, update_before_wait=True):
         t_ns = t * 1e9
 
         if t_ns <= 134 * 1e6:
@@ -820,7 +827,8 @@ class WieserlabsClient:
         # (Imaging the scenario: Setting a frequency, waiting, setting a different
         # frequency. Without the update, the chip does nothing, waits, then
         # sets the new frequency. The old frequency is never set).
-        self.push_update(slot_index, channel)
+        if update_before_wait:
+            self.push_update(slot_index, channel)
 
         msg = WaitMessage(channel, time_string, "")
         self.push_message(slot_index, msg)
