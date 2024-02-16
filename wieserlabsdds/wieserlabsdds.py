@@ -1,3 +1,8 @@
+"""
+The main api for the wieserlabs DDS.
+
+"""
+
 import logging
 import socket
 import sys
@@ -66,7 +71,9 @@ def get_bit(v, index):
     return (v >> index) & 1
 
 def set_bit(v, index, x):
-    """Set the index:th bit of v to 1 if x is truthy, else to 0, and return the new value."""
+    """
+    Set the index:th bit of v to 1 if x is truthy, else to 0, and return the new value.
+    """
     mask = 1 << index   # Compute mask, an integer with just bit 'index' set.
     v &= ~mask          # Clear the bit indicated by the mask (if x is False)
     if x:
@@ -629,21 +636,31 @@ class WieserlabsClient:
 
         Parameters
         ==========
-        `slot_index`: Which card to talk to.
-        `channel`: Which channel to talk to.
-        `freq`: Frequency during the phase ramp.
-        `amp`: Amplitude during the phase ramp.
-        `pstart`: Start value of the phase ramp.
-        `pend`: End value of the phase ramp.
-        `tramp`: Ramp duration in nanoseconds.
-        `pstep`: Step length for phase ramp (in general, you probably want this to be small).
-        `keep_amplitude_for_hack`: See notes.
+        slot_index
+            Which card to talk to.
+        channel
+            Which channel to talk to.
+        freq
+            Frequency during the phase ramp.
+        amp
+            Amplitude during the phase ramp.
+        pstart
+            Start value of the phase ramp.
+        pend
+            End value of the phase ramp.
+        tramp
+            Ramp duration in nanoseconds.
+        pstep
+            Step length for phase ramp (in general, you probably want this to be small).
+        keep_amplitude_for_hack
+            See notes.
 
+        
         Notes
         =====
         The variables `tramp` and `pstep` are both used to calculate the time
         after which the phase is increased by `pstep`. The formula for this is:
-        $t_step_ns = pstep * tramp / |pstart - pend| * 1e9$.
+        $t_step_ns = pstep * tramp / abs(pstart - pend) * 1e9$.
         The resulting value cannot exceed 0xffff. If it does, we won't do the ramp
         and instead print an error.
 
@@ -741,7 +758,7 @@ class WieserlabsClient:
         =====
         The variables `tramp` and `pstep` are both used to calculate the time
         after which the phase is increased by `pstep`. The formula for this is:
-        $t_step_ns = astep * tramp / |astart - aend| * 1e9$.
+        $t_step_ns = astep * tramp / abs(astart - aend) * 1e9$.
         The resulting value cannot exceed 0xffff. If it does, we won't do the ramp
         and instead print an error.
         """
@@ -833,7 +850,7 @@ class WieserlabsClient:
         msg = WaitMessage(channel, time_string, "")
         self.push_message(slot_index, msg)
 
-    def wait_trigger(self, slot_index, channel, trigger_events, timeout=-1):
+    def wait_trigger(self, slot_index, channel, trigger_events, timeout=-1, update_before_wait=True):
         timeout_ns = timeout * 1e9
 
         if type(trigger_events) != list:
@@ -858,9 +875,10 @@ class WieserlabsClient:
         trig_string = ",".join([str(ev.value) for ev in trigger_events])
 
         # See wait_time for why we are pushing an update here
-        msg_stack = self.slots[slot_index].message_stack
-        if len(msg_stack) > 0 and not isinstance(msg_stack[-1], UpdateMessage):
-            self.push_update(slot_index, channel)
+        if update_before_wait:
+            msg_stack = self.slots[slot_index].message_stack
+            if len(msg_stack) > 0 and not isinstance(msg_stack[-1], UpdateMessage):
+                self.push_update(slot_index, channel)
 
         msg = WaitMessage(channel, time_string, trig_string)
         self.push_message(slot_index, msg)
@@ -872,9 +890,11 @@ class WieserlabsClient:
 
         Parameters:
         ===========
-        param_type: Needs to be of RamParameterType. We can only store one parameter type
-                    into the RAM at the same time.
-        storage:    A list of parameter type (e.g. frequencies). Cannot be larger than 1024.
+        param_type : RamParameterType
+            Needs to be of RamParameterType. We can only store one parameter type
+            into the RAM at the same time.
+        storage
+            A list of parameter type (e.g. frequencies). Cannot be larger than 1024.
         """
 
         if not isinstance(param_type, RamParameterType):
@@ -995,10 +1015,10 @@ class WieserlabsClient:
 
         Parameters:
         ===========
-        voltage_to_output_map: The parameter is of type VoltageToOutputMap.
-                               Using this, we define which voltage from the
-                               analog input maps to the amplitude/frequency/phase on the
-                               output.
+        voltage_to_output_map : VoltageToOutputMap
+            Using this, we define which voltage from the
+            analog input maps to the amplitude/frequency/phase on the
+            output.
         """
 
         if not isinstance(voltage_to_output_map, VoltageToOutputMap):
