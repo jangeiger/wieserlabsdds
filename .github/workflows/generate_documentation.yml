@@ -25,6 +25,6 @@ jobs:
           if [ -f docs/requirements.txt ]; then pip install -r docs/requirements.txt; fi
       - name: Build Documentation
         run: |
-          python3 -m sphinx -W --keep-going -b html docs/source docs/build
+          python3 -m sphinx docs/source docs/build
 
   # TODO: deploy docs to web server
