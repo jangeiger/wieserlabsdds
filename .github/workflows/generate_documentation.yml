@@ -1,0 +1,30 @@
+name: Generate documentation
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.12]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install python dependencies from docs/requirements.txt
+        run: |
+          pip install --upgrade pip
+          pip install wheel
+          if [ -f docs/requirements.txt ]; then pip install -r docs/requirements.txt; fi
+      - name: Build Documentation
+        run: |
+          python3 -m sphinx -W --keep-going -b html docs/source docs/build
+
+  # TODO: deploy docs to web server

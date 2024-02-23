@@ -104,7 +104,7 @@ class PulseSequence:
         Parameters
         ----------
         dds : WieserlabsClient
-            An instance of :obj:'WieserlabsClient' to send the pulses to.
+            An instance of :class:'wieserlabsdds.wieserlabsdds.WieserlabsClient' to send the pulses to.
         slot : int
             Frequency of the pulse in Hz
         channel : int
@@ -123,7 +123,7 @@ class PulseSequence:
         self.pulses = []
         self.generated = False
 
-    def add_pulse(self, t, freq=None, amp=None, phase=0):
+    def add_pulse(self, t:float, freq:float=None, amp:float=None, phase:float=0):
         """
         Adds a pulse with duration t to the sequence
         """
@@ -134,6 +134,9 @@ class PulseSequence:
     def generate(self, trigger_option=1, trigger=[wieserlabsdds.TriggerEvent.BNC_IN_A_RISING]):
         """
         Generate the pulse sequence while lading pulse data during wait times to achieve an optimal timing.
+
+        Parameters
+        ----------
 
         trigger_option: int
             An option to choose how to start and run the sequence.
@@ -147,7 +150,7 @@ class PulseSequence:
             In this case, the duration argument of the pulses will not be used.
         
         trigger : list
-            A list containing the number of trigger events this pulse sequence listens to. Those trigger events should follow the enum defined in the wieserlabsdds.py package named TriggerEvent
+            A list containing the number of trigger events this pulse sequence listens to. Those trigger events should be chosen from the enum defined in :class:`wieserlabsdds.wieserlabsdds.TriggerEvent`.
         """
         # put pulses on DDS
         if self.generated:
@@ -207,7 +210,7 @@ class QubitPulseSequence(PulseSequence):
     """
     A pulse sequence for the DDS.
 
-    This class is intended to perform qubit rotations and thus a specialization from the more general PulseSequence class.
+    This class is intended to perform qubit rotations and thus a specialization from the more general :class:`PulseSequence` class.
     """
 
     def __init__(self, dds, slot:int, channel:int, pi_pulse_time:float, freq:float=1e6, amp:float=1):
@@ -216,17 +219,17 @@ class QubitPulseSequence(PulseSequence):
 
         Parameters
         ----------
-        dds : WieserlabsClient
-            An instance of :obj:'WieserlabsClient' to send the pulses to.
+        dds : wieserlabsdds.WieserlabsClient
+            An instance of :class:`wieserlabsdds.wieserlabsdds.WieserlabsClient` to send the pulses to. 
         slot : int
             Frequency of the pulse in Hz
-        pi_pulse_time : float
-            The time in seconds, it takes for a pi rotation around the X axis.
         channel : int
             The amplitude of the pulse. Has to be 0<=amp<=1.
-        default_freq : float
+        pi_pulse_time : float
+            The time in seconds, it takes for a pi rotation around the X axis.
+        freq : float
             The default frequency in Hz to be used, if no other frequency is given
-        default_amp : float
+        amp : float
             The default amplitude between 0 and 1 to be used, if no other amplitude is given
         """
         super().__init__(dds, slot, channel, freq, amp)

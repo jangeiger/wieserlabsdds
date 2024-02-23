@@ -48,7 +48,20 @@ class OutputType(Enum):
     FREQUENCY       = 2
 
 # We need to convert a frequency to DDS compatible language
-def freq_to_word(f):
+def freq_to_word(f:float):
+    """
+    Converts a frequency into DDS compatible language
+
+    Parameters
+    ----------
+    f : float
+        Frequency in Hz
+
+    Returns
+    -------
+    word : str
+        The frequency as string
+    """
     # f in Hz
     if f < 0 or f >= 1e9:
         logging.warning("freq needs to be in range [0,1e9)")
@@ -80,8 +93,10 @@ def set_bit(v, index, x):
         v |= mask         # If x was True, set the bit indicated by the mask.
     return v            # Return the result, we're done.
 
-# This is the parent class for the four most important dcp instructinos
 class MessageType:
+    """
+    This is the parent class for the four most important dcp instructions
+    """
     def __init__(self):
         pass
 
@@ -155,7 +170,7 @@ class UpdateMessage(MessageType):
         self.update_type = update_type
 
     def get_message(self):
-        """ Gets the messaeg of the update command
+        """ Gets the message of the update command
         """
         channel_string = self.channel if self.channel != None else ""
         return self.clean_msg(f"dcp {channel_string} update:{self.update_type}")
@@ -166,14 +181,16 @@ class VoltageToOutputMap:
     equations. Using this class, we can give starting conditions.
 
     This class solves the following equations for s0, s1 and offset:
-    out1 = (v1ch0 * s0 + v1ch1 * s1) / 2**12 + offset
-    out2 = (v2ch0 * s0 + v2ch1 * s1) / 2**12 + offset
-    out3 = (v3ch0 * s0 + v3ch1 * s1) / 2**12 + offset
+
+    .. math:: \mathrm{out1} = (\mathrm{v1ch0} * s_0 + \mathrm{v1ch1} * s_1) / 2^{12} + \mathrm{offset}
+    .. math:: \mathrm{out2} = (\mathrm{v2ch0} * s_0 + \mathrm{v2ch1} * s_1) / 2^{12} + \mathrm{offset}
+    .. math:: \mathrm{out3} = (\mathrm{v3ch0} * s_0 + \mathrm{v3ch1} * s_1) / 2^{12} + \mathrm{offset}
+
 
     When doing analog modulation, we map analog voltages to output values depending on the
     type we want to modulate. So frequencies are in Hz, phases in rad and amplitudes from 0 to 1.
     (Actually, these values are FTW, POW and ASF, you probably don't have to use this function,
-    but refer to the AD9910 datasheet if you're curious. It is the result from the *_to_word functions)
+    but refer to the AD9910 datasheet if you're curious. It is the result from the [*]_to_word functions).
     This means out[N] is the output value given a input voltage v[N]ch0 at channel 0 and v[N]ch1
     at channel 1. If we know we only modulate on one channel, the set of equations reduce to 2 and
     consequently, the values for the other channel, as well as the variants for the third
@@ -184,9 +201,13 @@ class VoltageToOutputMap:
     you expect!
     """
     class ChannelType(Enum):
+        """An Enum to define which channel is being used."""
         CH0_ONLY  = 1
+        """Only channel 0"""
         CH1_ONLY  = 2
+        """Only channel 1"""
         BOTH      = 3
+        """Both channels"""
 
     def __init__(self, use_outputs, output_type,
         v1ch0=0, v1ch1=0, out1=0,
@@ -231,9 +252,19 @@ class VoltageToOutputMap:
         """
         In accordance to the class description, this function solves the linear equations.
 
-        Return values
-        =============
-        s0, s1, offset
+        Returns
+        -------
+        s0
+            Coefficient
+        s1
+            Coefficient
+        offset
+            Coefficient
+
+        Notes
+        -----
+        
+        For the definition of the coefficients see :func:`wieserlabsdds.wieserlabsdds.VoltageToOutputMap`
         """
         A = self.out1
         B = self.v1ch0
@@ -478,10 +509,15 @@ class WieserlabsClient:
 
     def _get_stp0_value(self, freq, amp, phase):
         """ Generate the command to set the frequency
-            Parameters:
-                channel: 0 or 1, the channel on the slot
-                freq: Frequency in Hz
-                amp: The amplitude in dBm
+
+            Parameters
+            ----------
+                channel : int
+                    0 or 1, the channel on the slot
+                freq : float
+                    Frequency in Hz
+                amp : float
+                    The amplitude in dBm
         """
 
         amp_w = amp_to_word(amp)
@@ -491,7 +527,19 @@ class WieserlabsClient:
 
     def push_update(self, slot_index, channel, update_type="u"):
         """
-        Update the DDS, so that the changes take effect
+        Update the DDS, so that the changes take effect.
+
+        Parameters
+        -------
+        slot_index : int
+            Index of the slot
+        channel : int
+            Index of the channel
+        update_type : {'u', 'o', 'd', 'h', 'p', 'a', 'b', 'c'}, optional
+            Update type
+
+        Notes
+        -----
         This function checks if the last message of this channel was an update.
         If it was, it won't push an update.
         """
@@ -530,13 +578,21 @@ class WieserlabsClient:
 
     def single_tone(self, slot_index, channel, freq, amp, phase=0, suffix=None):
         """ Generate a single tone
-            Parameters:
-                slot: 0..5, the hardware slot used in the rack
-                channel: 0 or 1, the channel on the slot
-                freq: Frequency in Hz
-                amp: The amplitude in dBm
-                phase: The phase of the note in degrees (0..360)
-                suffix: An optional suffix to the command (for example c)
+
+            Parameters
+            ----------
+            slot
+                0..5, the hardware slot used in the rack
+            channel
+                0 or 1, the channel on the slot
+            freq
+                Frequency in Hz
+            amp
+                The amplitude in dBm
+            phase
+                The phase of the note in degrees (0..360)
+            suffix
+                An optional suffix to the command (for example c)
         """
 
         # Make sure single tone amplitude control is on
@@ -635,32 +691,33 @@ class WieserlabsClient:
         Start a phase ramp.
 
         Parameters
-        ==========
-        slot_index
+        ----------
+        slot_index : int
             Which card to talk to.
-        channel
+        channel : int
             Which channel to talk to.
-        freq
+        freq : float
             Frequency during the phase ramp.
-        amp
+        amp : float
             Amplitude during the phase ramp.
-        pstart
+        pstart : float
             Start value of the phase ramp.
-        pend
+        pend : float
             End value of the phase ramp.
-        tramp
+        tramp : float
             Ramp duration in nanoseconds.
-        pstep
+        pstep : float
             Step length for phase ramp (in general, you probably want this to be small).
-        keep_amplitude_for_hack
+        keep_amplitude_for_hack : bool
             See notes.
 
         
         Notes
-        =====
+        -----
         The variables `tramp` and `pstep` are both used to calculate the time
         after which the phase is increased by `pstep`. The formula for this is:
-        $t_step_ns = pstep * tramp / abs(pstart - pend) * 1e9$.
+        :math:`t_{\mathrm{step, ns}} = \mathrm{pstep} * \mathrm{tramp} / \mathrm{abs}(\mathrm{pstart} - \mathrm{pend}) \cdot 10^9`.
+
         The resulting value cannot exceed 0xffff. If it does, we won't do the ramp
         and instead print an error.
 
@@ -744,21 +801,30 @@ class WieserlabsClient:
         Start a phase ramp.
 
         Parameters
-        ==========
-        `slot_index`: Which card to talk to.
-        `channel`: Which channel to talk to.
-        `freq`: Frequency during the amplitude ramp.
-        `astart`: Start value of the amplitude ramp.
-        `aend`: Start value of the amplitude ramp.
-        `phase`: Phase during the amplitude ramp.
-        `tramp`: Ramp duration in nanoseconds.
-        `astep`: Step length for amplitude ramp (in general, you probably want this to be small).
+        ----------
+        slot_index
+            Which card to talk to.
+        channel
+            Which channel to talk to.
+        freq
+            Frequency during the amplitude ramp.
+        astart
+            Start value of the amplitude ramp.
+        aend
+            Start value of the amplitude ramp.
+        phase
+            Phase during the amplitude ramp.
+        tramp
+            Ramp duration in nanoseconds.
+        astep
+            Step length for amplitude ramp (in general, you probably want this to be small).
 
         Notes
-        =====
+        -----
         The variables `tramp` and `pstep` are both used to calculate the time
         after which the phase is increased by `pstep`. The formula for this is:
-        $t_step_ns = astep * tramp / abs(astart - aend) * 1e9$.
+        :math:`t_{\mathrm{step, ns}} = \mathrm{astep} * \mathrm{tramp} / \mathrm{abs}(\mathrm{astart} - \mathrm{aend}) \cdot 10^9`.
+
         The resulting value cannot exceed 0xffff. If it does, we won't do the ramp
         and instead print an error.
         """
@@ -888,8 +954,12 @@ class WieserlabsClient:
         """
         Store waveforms in the RAM of the AD9910.
 
-        Parameters:
-        ===========
+        Parameters
+        ----------
+        slot_index : int
+            The DDS slot
+        channel : int
+            The DDS channel
         param_type : RamParameterType
             Needs to be of RamParameterType. We can only store one parameter type
             into the RAM at the same time.
@@ -1013,8 +1083,12 @@ class WieserlabsClient:
 
         We get the output type of the modulation from voltage_to_output_map
 
-        Parameters:
-        ===========
+        Parameters
+        ----------
+        slot_index : int
+            Index of the slot
+        channel : int
+            Index of the channel
         voltage_to_output_map : VoltageToOutputMap
             Using this, we define which voltage from the
             analog input maps to the amplitude/frequency/phase on the
@@ -1063,6 +1137,17 @@ class WieserlabsClient:
         self.push_update(slot_index, channel)
 
     def run(self, slot_index, no_update=False):
+        """
+        Upload & run the sequence on the DDS
+
+        Parameters
+        ----------
+        slot_index : int
+            The slot to upload to
+        no_update : {False, True}, optional
+            If no update should be sent. By default we send the update.
+            This update will affect all channels within the slot
+        """
         slot = self.slots[slot_index]
 
         if not no_update:
