@@ -1,0 +1,6 @@
+[project]
+name = "wieserlabsdds"
+version = "0.0.1"
+description = "A python API to controll the Wieserlabs DDS"
+readme = "README.md"
+requires-python = ">=3.8"
